@@ -1,3 +1,4 @@
+use futures::future::join_all;
 use serde::Deserialize;
 use serde_json;
 
@@ -10,20 +11,12 @@ struct RecordsResponse {
     data: Vec<Record>,
 }
 
-struct RecordsListResult {
-    records: Vec<Record>,
-    timestamp: String,
-}
-
 async fn get_records(
-    server: &str,
-    bucket: &str,
-    collection: &str,
-) -> Result<RecordsListResult, reqwest::Error> {
-    let url: String = format!(
-        "{}/buckets/{}/collections/{}/records",
-        server, bucket, collection
-    );
+    server: String,
+    bid: String,
+    cid: String,
+) -> Result<(Vec<Record>, String), reqwest::Error> {
+    let url = format!("{}/buckets/{}/collections/{}/records", server, bid, cid);
     println!("Fetch {}...", url);
     let resp = reqwest::get(&url).await?;
     let timestamp = resp
@@ -38,32 +31,36 @@ async fn get_records(
     // Parse JSON response.
     let result: RecordsResponse = serde_json::from_str(&body).unwrap();
 
-    Ok(RecordsListResult {
-        records: result.data,
-        timestamp: timestamp,
-    })
+    Ok((result.data, timestamp))
 }
 
 #[tokio::main]
 async fn main() {
-    let result = get_records(SERVER_PROD, "monitor", "changes")
-        .await
-        .unwrap();
+    let (records, timestamp) = get_records(
+        SERVER_PROD.to_string(),
+        "monitor".to_string(),
+        "changes".to_string(),
+    )
+    .await
+    .unwrap();
 
-    println!("Last modified {}", result.timestamp);
+    println!("Last modified {}", timestamp);
 
-    for entry in result.records {
-        let bucket = entry["bucket"].as_str().unwrap();
-        let collection = entry["collection"].as_str().unwrap();
-        if bucket.to_string().ends_with("preview") {
-            continue;
-        }
-        let col_result = get_records(SERVER_PROD, bucket, collection).await.unwrap();
-        println!(
-            "{}/{}: {} records.",
-            bucket,
-            collection,
-            col_result.records.len()
-        );
+    let entries = records
+        .into_iter()
+        .map(|entry| {
+            let bid = entry["bucket"].as_str().unwrap().to_string();
+            let cid = entry["collection"].as_str().unwrap().to_string();
+            (bid, cid)
+        })
+        .filter(|(bid, _)| !bid.ends_with("preview"));
+
+    let futures = entries.map(|(bid, cid)| get_records(SERVER_PROD.to_string(), bid, cid));
+
+    let results = join_all(futures).await;
+
+    for result in results {
+        let (records, timestamp) = result.unwrap();
+        println!("{}, {}", records.len(), timestamp);
     }
 }
