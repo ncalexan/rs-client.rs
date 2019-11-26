@@ -26,6 +26,10 @@ async fn get_records(
         .to_str()
         .unwrap()
         .to_string();
+    println!(
+        "Download {:?} bytes...",
+        resp.headers().get("content-length").unwrap()
+    );
     let body = resp.text().await?;
 
     // Parse JSON response.
@@ -46,21 +50,33 @@ async fn main() {
 
     println!("Last modified {}", timestamp);
 
-    let entries = records
-        .into_iter()
-        .map(|entry| {
+    let entries: Vec<(String, String)> = records
+        .iter()
+        .filter_map(|entry| {
             let bid = entry["bucket"].as_str().unwrap().to_string();
             let cid = entry["collection"].as_str().unwrap().to_string();
-            (bid, cid)
+            if !bid.ends_with("preview") {
+                Some((bid, cid))
+            } else {
+                None
+            }
         })
-        .filter(|(bid, _)| !bid.ends_with("preview"));
+        .collect();
 
-    let futures = entries.map(|(bid, cid)| get_records(SERVER_PROD.to_string(), bid, cid));
+    let futures = entries
+        .iter()
+        .map(|(bid, cid)| get_records(SERVER_PROD.to_string(), bid.to_owned(), cid.to_owned()));
 
     let results = join_all(futures).await;
 
-    for result in results {
-        let (records, timestamp) = result.unwrap();
-        println!("{}, {}", records.len(), timestamp);
+    for ((bucket, collection), ref result) in entries.iter().zip(results) {
+        let (records, timestamp) = result.as_ref().unwrap();
+        println!(
+            "{}/{}: {} records ({})",
+            bucket,
+            collection,
+            records.len(),
+            timestamp
+        );
     }
 }
