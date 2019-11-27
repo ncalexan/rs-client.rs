@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use serde_json;
 
+use reqwest::Error as ReqwestError;
+
 pub type KintoObject = serde_json::Value;
 
 #[derive(Deserialize)]
@@ -13,12 +15,21 @@ struct KintoObjectResponse {
     data: KintoObject,
 }
 
+#[derive(Debug)]
+pub enum KintoError {}
+
+impl From<ReqwestError> for KintoError {
+    fn from(err: ReqwestError) -> Self {
+        err.into()
+    }
+}
+
 pub async fn get_collection_metadata(
     server: String,
     bid: String,
     cid: String,
     expected: u64,
-) -> Result<KintoObject, reqwest::Error> {
+) -> Result<KintoObject, KintoError> {
     let url = format!(
         "{}/buckets/{}/collections/{}?_expected={}",
         server, bid, cid, expected
@@ -36,7 +47,7 @@ pub async fn get_records(
     bid: String,
     cid: String,
     expected: u64,
-) -> Result<(Vec<KintoObject>, String), reqwest::Error> {
+) -> Result<(Vec<KintoObject>, String), KintoError> {
     let url = format!(
         "{}/buckets/{}/collections/{}/records?_expected={}",
         server, bid, cid, expected

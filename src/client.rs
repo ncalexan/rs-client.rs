@@ -1,4 +1,13 @@
-use crate::kinto_http::{get_collection_metadata, get_records, KintoObject};
+use crate::kinto_http::{get_collection_metadata, get_records, KintoError, KintoObject};
+
+#[derive(Debug)]
+pub enum ClientError {}
+
+impl From<KintoError> for ClientError {
+    fn from(err: KintoError) -> Self {
+        err.into()
+    }
+}
 
 pub struct RemoteSettingsCollection {
     pub bid: String,
@@ -19,7 +28,7 @@ impl Client {
         }
     }
 
-    pub async fn poll_changes(&self) -> Result<Vec<(String, String, u64)>, reqwest::Error> {
+    pub async fn poll_changes(&self) -> Result<Vec<(String, String, u64)>, ClientError> {
         let (records, _) = get_records(
             self.server.to_owned(),
             "monitor".to_string(),
@@ -51,7 +60,7 @@ impl Client {
         bid: String,
         cid: String,
         expected: u64,
-    ) -> Result<RemoteSettingsCollection, reqwest::Error> {
+    ) -> Result<RemoteSettingsCollection, ClientError> {
         let metadata = get_collection_metadata(
             self.server.to_owned(),
             bid.to_owned(),
