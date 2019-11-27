@@ -1,4 +1,5 @@
 use futures::future::join_all;
+use rayon::prelude::*;
 
 mod canonical_json;
 mod client;
@@ -22,9 +23,13 @@ async fn main() {
     let results = join_all(futures).await;
 
     let verifier = Verifier::new();
-    for result in results {
-        let dataset = result.unwrap();
-        let valid = verifier.verify(&dataset);
-        println!("{}/{}: {}", dataset.bid, dataset.cid, valid);
-    }
+    let failing: Vec<String> = results.par_iter().filter_map(|ref result| {
+        let dataset = result.as_ref().unwrap();
+        if !verifier.verify(&dataset) {
+            Some(format!("{}/{}", dataset.bid, dataset.cid))
+        } else {
+            None
+        }
+    }).collect();
+    println!("{:#?}", failing);
 }

@@ -1,5 +1,5 @@
 use crate::canonical_json::serialize;
-use crate::client::RemoteSettingsCollection;
+use crate::client::Collection;
 
 pub struct Verifier {}
 
@@ -8,17 +8,17 @@ impl Verifier {
         Verifier {}
     }
 
-    pub fn verify(&self, dataset: &RemoteSettingsCollection) -> bool {
-        let signature = dataset.metadata["signature"]["signature"]
+    pub fn verify(&self, collection: &Collection) -> bool {
+        let signature = collection.metadata["signature"]["signature"]
             .as_str()
             .unwrap()
             .to_string();
-        let canonical: Vec<String> = dataset.records.iter().map(|r| serialize(r)).collect();
+        let canonical: Vec<String> = collection.records.iter().map(|r| serialize(r)).collect();
 
         let serialized = format!(
             "{{\"data\":[{}],\"last_modified\":{}}}",
             canonical.join(","),
-            dataset.timestamp
+            collection.timestamp
         );
 
         signature == serialized

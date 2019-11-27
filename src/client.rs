@@ -9,7 +9,7 @@ impl From<KintoError> for ClientError {
     }
 }
 
-pub struct RemoteSettingsCollection {
+pub struct Collection {
     pub bid: String,
     pub cid: String,
     pub metadata: KintoObject,
@@ -60,7 +60,7 @@ impl Client {
         bid: String,
         cid: String,
         expected: u64,
-    ) -> Result<RemoteSettingsCollection, ClientError> {
+    ) -> Result<Collection, ClientError> {
         let metadata = get_collection_metadata(
             self.server.to_owned(),
             bid.to_owned(),
@@ -76,7 +76,7 @@ impl Client {
         )
         .await?;
 
-        Ok(RemoteSettingsCollection {
+        Ok(Collection {
             bid: bid.to_owned(),
             cid: cid.to_owned(),
             metadata: metadata.to_owned(),
