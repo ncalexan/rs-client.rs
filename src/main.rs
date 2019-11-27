@@ -23,13 +23,16 @@ async fn main() {
     let results = join_all(futures).await;
 
     let verifier = Verifier::new();
-    let failing: Vec<String> = results.par_iter().filter_map(|ref result| {
-        let dataset = result.as_ref().unwrap();
-        if !verifier.verify(&dataset) {
-            Some(format!("{}/{}", dataset.bid, dataset.cid))
-        } else {
-            None
-        }
-    }).collect();
+    let failing: Vec<String> = results
+        .par_iter()
+        .filter_map(|ref result| {
+            let dataset = result.as_ref().unwrap();
+            if !verifier.verify(&dataset) {
+                Some(format!("{}/{}", dataset.bid, dataset.cid))
+            } else {
+                None
+            }
+        })
+        .collect();
     println!("{:#?}", failing);
 }
