@@ -81,7 +81,7 @@ impl Client {
             cid: cid.to_owned(),
             metadata: metadata.to_owned(),
             records: records.to_owned(),
-            timestamp: timestamp.to_owned(),
+            timestamp: timestamp.replace("\"", "").to_owned(),
         })
     }
 }
