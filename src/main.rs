@@ -1,12 +1,11 @@
 use futures::future::join_all;
-use rayon::prelude::*;
 
 mod canonical_json;
 mod client;
 mod kinto_http;
 mod signatures;
 
-use client::Client;
+use client::{Client, Collection};
 use signatures::Verifier;
 
 const SERVER_PROD: &'static str = "https://firefox.settings.services.mozilla.com/v1";
@@ -21,18 +20,23 @@ async fn main() {
         client.fetch_collection(bid.to_owned(), cid.to_owned(), timestamp.to_owned())
     });
     let results = join_all(futures).await;
+    let datasets: Vec<&Collection> = results
+        .iter()
+        .map(|ref result| result.as_ref().unwrap())
+        .collect();
 
     let verifier = Verifier::new();
-    let failing: Vec<String> = results
-        .par_iter()
-        .filter_map(|ref result| {
-            let dataset = result.as_ref().unwrap();
-            if !verifier.verify(&dataset) {
-                Some(format!("{}/{}", dataset.bid, dataset.cid))
-            } else {
-                None
-            }
+    let verif_futures = datasets.iter().map(|ref dataset| verifier.verify(&dataset));
+    let verif_results = join_all(verif_futures).await;
+
+    let failing: Vec<String> = datasets
+        .iter()
+        .zip(verif_results)
+        .filter_map(|(dataset, verif)| match verif {
+            Ok(()) => None,
+            Err(_) => Some(format!("{}/{}", dataset.bid, dataset.cid)),
         })
         .collect();
-    println!("{:#?}", failing);
+
+    println!("{:?}", failing);
 }
