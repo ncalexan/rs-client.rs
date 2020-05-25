@@ -1,4 +1,4 @@
-use crate::kinto_http::{get_collection_metadata, get_records, KintoError, KintoObject};
+use crate::kinto_http::{get_changeset, get_records, KintoError, KintoObject};
 
 #[derive(Debug)]
 pub enum ClientError {}
@@ -61,14 +61,7 @@ impl Client {
         cid: String,
         expected: u64,
     ) -> Result<Collection, ClientError> {
-        let metadata = get_collection_metadata(
-            self.server.to_owned(),
-            bid.to_owned(),
-            cid.to_owned(),
-            expected,
-        )
-        .await?;
-        let (records, timestamp) = get_records(
+        let changeset = get_changeset(
             self.server.to_owned(),
             bid.to_owned(),
             cid.to_owned(),
@@ -79,9 +72,9 @@ impl Client {
         Ok(Collection {
             bid: bid.to_owned(),
             cid: cid.to_owned(),
-            metadata: metadata.to_owned(),
-            records: records.to_owned(),
-            timestamp: timestamp.replace("\"", "").to_owned(),
+            metadata: changeset.metadata.to_owned(),
+            records: changeset.changes.to_owned(),
+            timestamp: changeset.timestamp.to_string().to_owned(),
         })
     }
 }
