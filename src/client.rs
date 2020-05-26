@@ -14,7 +14,7 @@ pub struct Collection {
     pub cid: String,
     pub metadata: KintoObject,
     pub records: Vec<KintoObject>,
-    pub timestamp: String,
+    pub timestamp: i64,
 }
 
 pub struct Client {
@@ -74,7 +74,7 @@ impl Client {
             cid: cid.to_owned(),
             metadata: changeset.metadata.to_owned(),
             records: changeset.changes.to_owned(),
-            timestamp: changeset.timestamp.to_string().to_owned(),
+            timestamp: changeset.timestamp,
         })
     }
 }

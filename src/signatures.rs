@@ -84,9 +84,11 @@ impl Verifier {
         let signature = FixedSignature::<NistP384>::from_bytes(&signature_bytes)?;
 
         // Serialized data.
+        let mut sorted_records = collection.records.to_vec();
+        sorted_records.sort_by(|a, b| (a["id"]).to_string().cmp(&b["id"].to_string()));
         let serialized = serialize(&json!({
-            "data": collection.records,
-            "last_modified": collection.timestamp
+            "data": sorted_records,
+            "last_modified": collection.timestamp.to_string().to_owned()
         }));
         let data = format!("Content-Signature:\x00{}", serialized);
 
