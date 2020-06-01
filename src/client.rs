@@ -28,15 +28,13 @@ impl Client {
         }
     }
 
-    pub async fn poll_changes(&self) -> Result<Vec<(String, String, u64)>, ClientError> {
+    pub fn poll_changes(&self) -> Result<Vec<(String, String, u64)>, ClientError> {
         let (records, _) = get_records(
             self.server.to_owned(),
             "monitor".to_string(),
             "changes".to_string(),
             0,
-        )
-        .await
-        .unwrap();
+        )?;
 
         let entries: Vec<(String, String, u64)> = records
             .iter()
@@ -55,7 +53,7 @@ impl Client {
         Ok(entries)
     }
 
-    pub async fn fetch_collection(
+    pub fn fetch_collection(
         &self,
         bid: String,
         cid: String,
@@ -66,8 +64,7 @@ impl Client {
             bid.to_owned(),
             cid.to_owned(),
             expected,
-        )
-        .await?;
+        )?;
 
         Ok(Collection {
             bid: bid.to_owned(),

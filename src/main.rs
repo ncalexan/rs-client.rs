@@ -1,5 +1,3 @@
-use futures::future::join_all;
-
 mod canonical_json;
 mod client;
 mod kinto_http;
@@ -8,27 +6,26 @@ mod signatures;
 use client::{Client, Collection};
 use signatures::Verifier;
 use std::collections::HashMap;
+pub use viaduct::{note_backend, set_backend};
+pub use viaduct_reqwest::ReqwestBackend;
 
 const SERVER_PROD: &'static str = "https://firefox.settings.services.mozilla.com/v1";
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    set_backend(&ReqwestBackend).unwrap(); // XXX
+
     let client = Client::new(SERVER_PROD.to_string());
 
-    let entries = client.poll_changes().await.unwrap();
+    let entries = client.poll_changes().unwrap();
 
-    let futures = entries.iter().map(|(bid, cid, timestamp)| {
-        client.fetch_collection(bid.to_owned(), cid.to_owned(), timestamp.to_owned())
-    });
-    let results = join_all(futures).await;
-    let datasets: Vec<&Collection> = results
-        .iter()
-        .map(|ref result| result.as_ref().unwrap())
-        .collect();
+    let results: Result<Vec<_>, _> = entries.into_iter().map(|(bid, cid, timestamp)| {
+        client.fetch_collection(bid, cid, timestamp)
+    }).collect();
+
+    let datasets: Vec<Collection> = results.unwrap(); // XXX
 
     let verifier = Verifier::new();
-    let verif_futures = datasets.iter().map(|ref dataset| verifier.verify(&dataset));
-    let verif_results = join_all(verif_futures).await;
+    let verif_results = datasets.iter().map(|ref dataset| verifier.verify(&dataset));
 
     let failing: HashMap<String, String> = datasets
         .iter()

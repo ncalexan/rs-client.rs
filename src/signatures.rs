@@ -7,14 +7,14 @@ use openssl::nid::Nid;
 use openssl::x509::X509;
 
 use base64;
-use reqwest;
-use reqwest::Error as ReqwestError;
 use serde_json::json;
 use signatory::{
     ecdsa::{curve::NistP384, FixedSignature},
     verify_sha384, EcdsaPublicKey, Signature,
 };
 use signatory_ring::ecdsa::P384Verifier;
+use url::{ParseError, Url};
+use viaduct::{Error as ViaductError, Request};
 
 #[derive(Debug)]
 pub enum SignatureError {
@@ -22,8 +22,14 @@ pub enum SignatureError {
     VerificationError { name: String },
 }
 
-impl From<ReqwestError> for SignatureError {
-    fn from(err: ReqwestError) -> Self {
+impl From<ViaductError> for SignatureError {
+    fn from(err: ViaductError) -> Self {
+        err.into()
+    }
+}
+
+impl From<ParseError> for SignatureError {
+    fn from(err: ParseError) -> Self {
         err.into()
     }
 }
@@ -57,11 +63,11 @@ impl Verifier {
         Verifier {}
     }
 
-    pub async fn verify(&self, collection: &Collection) -> Result<(), SignatureError> {
+    pub fn verify(&self, collection: &Collection) -> Result<(), SignatureError> {
         // Fetch certificate PEM (public key).
         let x5u = collection.metadata["signature"]["x5u"].as_str().unwrap();
-        let resp = reqwest::get(&x5u.to_string()).await?;
-        let pem = resp.bytes().await?;
+        let resp = Request::get(Url::parse(&x5u.to_string())?).send()?;
+        let pem = resp.body;
 
         // Parse PEM (OpenSSL)
         let cert = X509::from_pem(&pem)?;
